@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sierra Messenger — регистрация</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="bg-glow"><span></span><span></span><span></span></div>
+
+  <main class="auth-wrap">
+    <section class="hero">
+      <a class="logo fade-up" href="index.html">
+        <svg viewBox="0 0 40 40"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd6ff"/><stop offset="1" stop-color="#1d6bff"/></linearGradient></defs><path d="M20 3C10.6 3 3 9.7 3 18c0 4.4 2.1 8.3 5.5 11L7 37l8.2-4.3c1.5.4 3.1.6 4.8.6 9.4 0 17-6.7 17-15S29.4 3 20 3z" fill="url(#lg)"/><path d="M9 24l6.5-9 4 5 3-3.8L31 24z" fill="#021220"/></svg>
+        Sierra <b>Messenger</b>
+      </a>
+      <h1 class="fade-up d1">Создай свой<br><span class="grad">профиль</span> за минуту</h1>
+      <p class="fade-up d2">Придумай ник, введи почту, и мы пришлём тебе код подтверждения. Никакого спама — только код.</p>
+    </section>
+
+    <section class="card fade-up d2">
+      <h2>Регистрация</h2>
+      <p class="sub">Уже есть аккаунт? <a href="index.html">Войти</a></p>
+
+      <form id="regForm" novalidate>
+        <div class="field">
+          <label for="username">Ник</label>
+          <div class="input-wrap">
+            <span class="prefix">@</span>
+            <input class="input with-prefix" id="username" maxlength="20" placeholder="sierra_user" autocomplete="username" required>
+          </div>
+          <div class="hint" id="userHint">3–20 символов: латиница, цифры и _</div>
+        </div>
+        <div class="field">
+          <label for="displayName">Имя</label>
+          <input class="input" id="displayName" maxlength="40" placeholder="Как тебя показывать другим">
+        </div>
+        <div class="field">
+          <label for="email">Почта</label>
+          <input class="input" id="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="password">Пароль</label>
+          <div class="input-wrap">
+            <input class="input" id="password" type="password" placeholder="Минимум 8 символов" autocomplete="new-password" required>
+            <button type="button" class="toggle-pass">Показать</button>
+          </div>
+          <div class="strength"><i id="strengthBar"></i></div>
+          <div class="hint" id="passHint"></div>
+        </div>
+        <div class="field">
+          <label for="password2">Повтори пароль</label>
+          <input class="input" id="password2" type="password" placeholder="Ещё раз" autocomplete="new-password" required>
+        </div>
+        <button class="btn" id="regBtn" type="submit">Получить код на почту</button>
+      </form>
+    </section>
+  </main>
+
+  <script type="module">
+    import { sb, getSession, showConfigBannerIfNeeded } from './js/supabase.js';
+    import { toast, setLoading, ruError, initPasswordToggles } from './js/ui.js';
+
+    initPasswordToggles();
+    const notConfigured = showConfigBannerIfNeeded();
+    if (!notConfigured && (await getSession())) location.replace('app.html');
+
+    const $ = (id) => document.getElementById(id);
+    const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
+    let usernameFree = false;
+    let checkTimer;
+
+    // ---- Проверка ника на лету ----
+    $('username').addEventListener('input', () => {
+      const el = $('username');
+      el.value = el.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+      const v = el.value;
+      const hint = $('userHint');
+      usernameFree = false;
+      clearTimeout(checkTimer);
+      el.classList.remove('valid', 'invalid');
+
+      if (!v) { hint.className = 'hint'; hint.textContent = '3–20 символов: латиница, цифры и _'; return; }
+      if (!USERNAME_RE.test(v)) {
+        hint.className = 'hint err'; hint.textContent = 'Минимум 3 символа'; el.classList.add('invalid'); return;
+      }
+      hint.className = 'hint'; hint.textContent = 'Проверяем…';
+      checkTimer = setTimeout(async () => {
+        if (notConfigured) return;
+        const { data, error } = await sb.from('profiles').select('id').eq('username', v).maybeSingle();
+        const { data: owned } = await sb.from('usernames').select('name').eq('name', v).maybeSingle();
+        if ($('username').value !== v) return;
+        if (error) { hint.className = 'hint'; hint.textContent = ''; usernameFree = true; return; }
+        usernameFree = !data && !owned;
+        hint.className = usernameFree ? 'hint ok' : 'hint err';
+        hint.textContent = usernameFree ? `@${v} свободен ✓` : `@${v} уже занят`;
+        el.classList.add(usernameFree ? 'valid' : 'invalid');
+      }, 400);
+    });
+
+    // ---- Надёжность пароля ----
+    function strength(p) {
+      let s = 0;
+      if (p.length >= 8) s++;
+      if (p.length >= 12) s++;
+      if (/[a-zа-я]/.test(p) && /[A-ZА-Я]/.test(p)) s++;
+      if (/\d/.test(p)) s++;
+      if (/[^a-zA-Zа-яА-Я0-9]/.test(p)) s++;
+      return s;
+    }
+    $('password').addEventListener('input', () => {
+      const p = $('password').value;
+      const s = strength(p);
+      const levels = [
+        ['0%', '#ff5c7a', ''], ['25%', '#ff5c7a', 'Слабый'], ['45%', '#ffb547', 'Так себе'],
+        ['70%', '#4cc9ff', 'Хороший'], ['85%', '#3ee6a8', 'Надёжный'], ['100%', '#3ee6a8', 'Очень надёжный'],
+      ];
+      const [w, c, t] = p ? levels[Math.max(1, s)] : levels[0];
+      $('strengthBar').style.width = w;
+      $('strengthBar').style.background = c;
+      $('passHint').textContent = p.length && p.length < 8 ? 'Нужно минимум 8 символов' : t;
+      $('passHint').className = p.length && p.length < 8 ? 'hint err' : 'hint';
+    });
+
+    // ---- Отправка ----
+    $('regForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (notConfigured) return toast('Сначала подключи Supabase в js/config.js', 'error');
+
+      const username = $('username').value.trim();
+      const displayName = $('displayName').value.trim() || username;
+      const email = $('email').value.trim().toLowerCase();
+      const password = $('password').value;
+
+      if (!USERNAME_RE.test(username)) return toast('Ник: 3–20 символов, латиница, цифры и _', 'error');
+      if (!usernameFree) {
+        const { data } = await sb.from('profiles').select('id').eq('username', username).maybeSingle();
+        const { data: owned } = await sb.from('usernames').select('name').eq('name', username).maybeSingle();
+        if (data || owned) return toast('Этот ник уже занят', 'error');
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast('Проверь адрес почты', 'error');
+      if (password.length < 8) return toast('Пароль должен быть не короче 8 символов', 'error');
+      if (password !== $('password2').value) return toast('Пароли не совпадают', 'error');
+
+      const btn = $('regBtn');
+      setLoading(btn, true, 'Отправляем код…');
+      const { data, error } = await sb.auth.signUp({
+        email,
+        password,
+        options: { data: { username, display_name: displayName } },
+      });
+      setLoading(btn, false);
+
+      if (error) return toast(ruError(error), 'error');
+
+      // Supabase скрывает, что почта уже занята: возвращает пользователя без identities
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        return toast('Аккаунт с такой почтой уже есть. Попробуй войти', 'error');
+      }
+      // Если подтверждение почты выключено в Supabase — сразу пускаем
+      if (data.session) return location.replace('app.html');
+
+      location.href = `verify.html?email=${encodeURIComponent(email)}`;
+    });
+  </script>
+</body>
+</html>

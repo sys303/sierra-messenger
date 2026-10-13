@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sierra Messenger — настройка базы</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .wrap { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; padding: 32px 16px 80px; }
+    .wrap h1 { font-size: clamp(28px, 5vw, 38px); font-weight: 800; letter-spacing: -1px; margin: 22px 0 8px; }
+    .step { background: rgba(11,16,24,.9); border: 1px solid var(--border); border-radius: 20px; padding: 20px; margin-top: 14px; }
+    .step h2 { font-size: 18px; margin-bottom: 8px; display: flex; gap: 10px; align-items: center; }
+    .num { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--grad); color: #021220; font-weight: 800; flex: none; }
+    .step p, .step li { color: #c9d6e3; line-height: 1.6; }
+    .step ol { padding-left: 20px; }
+    .step .btn { margin-top: 12px; }
+    .check { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid var(--border); }
+    .check:last-child { border-bottom: none; }
+    .check small { display: block; color: var(--danger); word-break: break-word; }
+    .ok { color: var(--success); } .bad { color: var(--danger); }
+    code { background: rgba(76,201,255,.1); padding: 2px 6px; border-radius: 6px; color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"><span></span><span></span><span></span></div>
+  <main class="wrap">
+    <a class="logo" href="index.html">
+      <svg viewBox="0 0 40 40"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd6ff"/><stop offset="1" stop-color="#1d6bff"/></linearGradient></defs><path d="M20 3C10.6 3 3 9.7 3 18c0 4.4 2.1 8.3 5.5 11L7 37l8.2-4.3c1.5.4 3.1.6 4.8.6 9.4 0 17-6.7 17-15S29.4 3 20 3z" fill="url(#lg)"/><path d="M9 24l6.5-9 4 5 3-3.8L31 24z" fill="#021220"/></svg>
+      Sierra <b>Messenger</b>
+    </a>
+    <h1>Настройка базы данных</h1>
+    <p class="sub" style="color:var(--muted)">Чаты, посты, подарки, реакции, поддержка и админка работают, только если в Supabase выполнен этот код. Его можно запускать повторно — данные не пропадут.</p>
+
+    <section class="step">
+      <h2><span class="num">1</span> Скопируй код</h2>
+      <p>Нажми кнопку — весь код скопируется сам. Ничего выделять не нужно.</p>
+      <button class="btn" id="copyBtn">📋 Скопировать код базы данных</button>
+      <p id="copyInfo" style="margin-top:8px;color:var(--muted);font-size:14px"></p>
+    </section>
+
+    <section class="step">
+      <h2><span class="num">2</span> Вставь и запусти в Supabase</h2>
+      <ol>
+        <li>Открой <b>supabase.com</b> → свой проект → слева <b>SQL Editor</b>.</li>
+        <li>Нажми <b>New query</b> (или <b>+</b>), кликни в пустое поле.</li>
+        <li>Нажми <b>Ctrl+V</b> — появится очень длинный код (около 2000 строк).</li>
+        <li>Нажми зелёную кнопку <b>Run</b>. Если спросит про «destructive operation» — нажми <b>Run this query</b>.</li>
+        <li>Внизу должно быть <b>Success. No rows returned</b>.</li>
+      </ol>
+      <p>Если вместо Success красная ошибка — пришли скриншот.</p>
+    </section>
+
+    <section class="step">
+      <h2><span class="num">3</span> Проверь</h2>
+      <p>Войди на сайт (если ещё не вошёл) и нажми «Проверить». Все строки должны стать зелёными.</p>
+      <button class="btn" id="checkBtn">🔍 Проверить базу</button>
+      <div id="results" style="margin-top:12px"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { sb, getSession, showConfigBannerIfNeeded } from './js/supabase.js';
+    import { ALL_SQL } from './js/setup-sql.js';
+    import { toast } from './js/ui.js';
+
+    showConfigBannerIfNeeded();
+    const copyBtn = document.getElementById('copyBtn');
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(ALL_SQL);
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = ALL_SQL; document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      }
+      copyBtn.textContent = '✅ Скопировано! Теперь вставь в Supabase';
+      document.getElementById('copyInfo').textContent = `Скопировано ${ALL_SQL.split('\n').length} строк кода.`;
+      toast('Код скопирован', 'success');
+    };
+
+    document.getElementById('checkBtn').onclick = async () => {
+      const box = document.getElementById('results');
+      box.innerHTML = '';
+      const session = await getSession();
+      const row = (ok, name, err) => {
+        const d = document.createElement('div'); d.className = 'check';
+        const i = document.createElement('span'); i.className = ok ? 'ok' : 'bad'; i.textContent = ok ? '✅' : '❌';
+        const t = document.createElement('div'); t.textContent = name;
+        if (err) { const s = document.createElement('small'); s.textContent = err; t.append(s); }
+        d.append(i, t); box.append(d);
+      };
+      if (!session) { row(false, 'Ты не вошёл на сайт', 'Сначала войди на главной странице, потом вернись сюда'); return; }
+      const me = session.user.id;
+      const tests = [
+        ['Профили и «в сети»', () => sb.from('profiles').select('id,last_seen').limit(1)],
+        ['Кошелёк SierCoin', () => sb.from('wallets').select('balance').eq('user_id', me)],
+        ['Контакты', () => sb.from('contacts').select('contact_id').limit(1)],
+        ['Поиск по почте и телефону', () => sb.rpc('find_user_by_contact', { q: 'check@sierra.test' })],
+        ['Посты', () => sb.from('posts').select('id').limit(1)],
+        ['Чаты', () => sb.from('chats').select('id').limit(1)],
+        ['Сообщения', () => sb.from('messages').select('id').limit(1)],
+        ['Список чатов', () => sb.rpc('my_chats')],
+        ['Подарки', async () => {
+          const r = await sb.from('gift_catalog').select('id');
+          if (!r.error && (r.data || []).length < 10) return { error: { message: 'В каталоге меньше 10 подарков' } };
+          return r;
+        }],
+        ['Мои подарки', () => sb.from('user_gifts').select('id').limit(1)],
+        ['250 подарков', async () => {
+          const r = await sb.from('gift_catalog').select('id', { count: 'exact', head: true });
+          if (!r.error && r.count < 250) return { error: { message: `Подарков в базе: ${r.count}, а должно быть 250` } };
+          return r;
+        }],
+        ['NFT: модели, фоны и символы', () => sb.from('nft_symbols').select('name').limit(1)],
+        ['Реакции на сообщения', () => sb.from('message_reactions').select('message_id').limit(1)],
+        ['Счётчики постов', () => sb.from('posts').select('like_count').limit(1)],
+        ['Поддержка и жалобы', () => sb.from('reports').select('id').limit(1)],
+        ['Маркет юзернеймов', () => sb.from('usernames').select('name').limit(1)],
+        ['Права администратора', async () => {
+          const r = await sb.rpc('is_admin');
+          if (!r.error && r.data !== true) return { error: { message: 'Работает, но этот аккаунт — не администратор' }, soft: true };
+          return r;
+        }],
+      ];
+      let bad = 0;
+      for (const [name, fn] of tests) {
+        const res = await fn();
+        const error = res.error;
+        if (error && !res.soft) bad++;
+        row(!error, name, error && (error.message || error.code));
+      }
+      toast(bad ? `Проблем: ${bad}. Выполни шаги 1–2 и проверь снова` : 'Всё работает! 🎉', bad ? 'error' : 'success', 6000);
+      if (!bad) {
+        const a = document.createElement('a'); a.className = 'btn'; a.href = 'app.html'; a.textContent = 'Открыть Sierra Messenger →';
+        a.style.marginTop = '14px'; box.append(a);
+      }
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!-- Шаблон письма с кодом. Вставь его в Supabase → Authentication → Emails → Templates → «Confirm signup».
+     Тема письма (Subject): Твой код для Sierra Messenger: {{ .Token }} -->
+<div style="margin:0;padding:32px 16px;background:#04060a;font-family:Arial,Helvetica,sans-serif">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:460px;margin:0 auto;background:#0b1018;border:1px solid #16304a;border-radius:20px">
+    <tr>
+      <td style="padding:32px 32px 8px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:#e9f3fb">Sierra <span style="color:#4cc9ff">Messenger</span></div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 32px;text-align:center;color:#c9d6e3;font-size:15px;line-height:1.6">
+        Привет! Вот твой код для подтверждения почты:
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 32px 20px;text-align:center">
+        <div style="display:inline-block;padding:16px 28px;border-radius:14px;background:#04121f;border:1px solid #4cc9ff;font-size:34px;font-weight:800;letter-spacing:10px;color:#4cc9ff">{{ .Token }}</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 32px 32px;text-align:center;color:#8494a7;font-size:13px;line-height:1.6">
+        Введи его на сайте. Код действует ограниченное время.<br>
+        Если ты не регистрировался в Sierra Messenger — просто проигнорируй это письмо.
+      </td>
+    </tr>
+  </table>
+</div>

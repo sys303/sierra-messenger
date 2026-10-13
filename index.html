@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sierra Messenger — вход</title>
+  <meta name="description" content="Sierra Messenger — соцсеть для общения, постов и друзей">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="bg-glow"><span></span><span></span><span></span></div>
+
+  <main class="auth-wrap">
+    <section class="hero">
+      <a class="logo fade-up" href="index.html">
+        <svg viewBox="0 0 40 40"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd6ff"/><stop offset="1" stop-color="#1d6bff"/></linearGradient></defs><path d="M20 3C10.6 3 3 9.7 3 18c0 4.4 2.1 8.3 5.5 11L7 37l8.2-4.3c1.5.4 3.1.6 4.8.6 9.4 0 17-6.7 17-15S29.4 3 20 3z" fill="url(#lg)"/><path d="M9 24l6.5-9 4 5 3-3.8L31 24z" fill="#021220"/></svg>
+        Sierra <b>Messenger</b>
+      </a>
+      <h1 class="fade-up d1">Общайся.<br>Делись.<br><span class="grad">Будь на вершине.</span></h1>
+      <p class="fade-up d2">Посты, друзья, сообщения и истории в одном месте. Присоединяйся к Sierra Messenger — это бесплатно.</p>
+      <div class="features fade-up d3">
+        <span class="chip">📸 Посты с фото</span>
+        <span class="chip">💬 Личные сообщения</span>
+        <span class="chip">🔔 Уведомления</span>
+        <span class="chip">🔒 Подтверждение по почте</span>
+      </div>
+    </section>
+
+    <section class="card fade-up d2">
+      <h2>С возвращением 👋</h2>
+      <p class="sub">Войди в свой аккаунт Sierra Messenger</p>
+
+      <form id="loginForm" novalidate>
+        <div class="field">
+          <label for="email">Почта</label>
+          <input class="input" id="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="password">Пароль</label>
+          <div class="input-wrap">
+            <input class="input" id="password" type="password" placeholder="Твой пароль" autocomplete="current-password" required>
+            <button type="button" class="toggle-pass">Показать</button>
+          </div>
+        </div>
+        <button class="btn" id="loginBtn" type="submit">Войти</button>
+      </form>
+
+      <p class="switch">Нет аккаунта? <a href="register.html">Зарегистрироваться</a></p>
+    </section>
+  </main>
+
+  <script type="module">
+    import { sb, getSession, showConfigBannerIfNeeded } from './js/supabase.js';
+    import { toast, setLoading, ruError, initPasswordToggles } from './js/ui.js';
+
+    initPasswordToggles();
+    const notConfigured = showConfigBannerIfNeeded();
+
+    if (!notConfigured && (await getSession())) location.replace('app.html');
+
+    const form = document.getElementById('loginForm');
+    const btn = document.getElementById('loginBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (notConfigured) return toast('Сначала подключи Supabase в js/config.js', 'error');
+
+      const email = form.email.value.trim().toLowerCase();
+      const password = form.password.value;
+      if (!email || !password) return toast('Введи почту и пароль', 'error');
+
+      setLoading(btn, true);
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      setLoading(btn, false);
+
+      if (error) {
+        if (/email not confirmed/i.test(error.message)) {
+          toast('Почта не подтверждена. Отправляем новый код…');
+          location.href = `verify.html?email=${encodeURIComponent(email)}&resend=1`;
+          return;
+        }
+        return toast(ruError(error), 'error');
+      }
+      toast('Добро пожаловать!', 'success');
+      location.replace('app.html');
+    });
+  </script>
+</body>
+</html>
